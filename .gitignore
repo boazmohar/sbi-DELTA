@@ -208,3 +208,4 @@ __marimo__/
 data/.DS_Store
 notebooks/sbi-logs*
 notebooks/checkpoints/*
+Thumbs.db
