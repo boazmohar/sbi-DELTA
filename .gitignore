@@ -209,3 +209,4 @@ data/.DS_Store
 notebooks/sbi-logs*
 notebooks/checkpoints/*
 Thumbs.db
+.DS_Store

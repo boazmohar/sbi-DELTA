@@ -35,7 +35,7 @@ class OptimizationConfig:
     separation_penalty_weight: float = 3.0
     
     # Optimization parameters
-    n_multistart: int = 10  # Number of multi-start runs
+    n_multistart: int = 1  # Number of multi-start runs
     population_size: int = 20  # Population size for differential evolution
     max_iterations: int = 1000
     tolerance: float = 1e-6
