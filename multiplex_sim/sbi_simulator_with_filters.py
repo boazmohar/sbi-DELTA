@@ -262,21 +262,31 @@ class EnhancedSBISimulator:
             self.n_filter_params = 2 * self.config.n_channels  # centers + bandwidths
         else:
             self.n_filter_params = 0
+
+        if self.config.include_background_params:
+            self.n_background_params = 1
+        else:
+            self.n_background_params = 0
             
-        self.total_params = self.n_concentration_params + self.n_filter_params
+        self.total_params = self.n_concentration_params + self.n_filter_params + self.n_background_params
         
         # Create parameter indices for easy access
         self.concentration_slice = slice(0, self.n_concentration_params)
         
+        last_idx = self.n_concentration_params
         if self.config.include_filter_params:
             self.center_slice = slice(
-                self.n_concentration_params, 
-                self.n_concentration_params + self.config.n_channels
+                last_idx, 
+                last_idx + self.config.n_channels
             )
             self.bandwidth_slice = slice(
-                self.n_concentration_params + self.config.n_channels,
-                self.n_concentration_params + 2 * self.config.n_channels
+                last_idx + self.config.n_channels,
+                last_idx + 2 * self.config.n_channels
             )
+            last_idx += self.n_filter_params
+
+        if self.config.include_background_params:
+            self.background_slice = slice(last_idx, last_idx + self.n_background_params)
     
     def _optimize_excitation_wavelengths(self) -> List[float]:
         """
@@ -408,21 +418,20 @@ class EnhancedSBISimulator:
         if len(theta.shape) == 1:
             theta = theta[np.newaxis, :]
             
-        concentrations = theta[:, self.concentration_slice]
+        params = {'concentrations': theta[:, self.concentration_slice]}
         
         if self.config.include_filter_params:
-            center_wavelengths = theta[:, self.center_slice]
-            bandwidths = theta[:, self.bandwidth_slice]
+            params['center_wavelengths'] = theta[:, self.center_slice]
+            params['bandwidths'] = theta[:, self.bandwidth_slice]
         else:
             # Use default values if filter params not included
-            center_wavelengths = np.full((theta.shape[0], self.config.n_channels), 600.0)
-            bandwidths = np.full((theta.shape[0], self.config.n_channels), 20.0)
+            params['center_wavelengths'] = np.full((theta.shape[0], self.config.n_channels), 600.0)
+            params['bandwidths'] = np.full((theta.shape[0], self.config.n_channels), 20.0)
+
+        if self.config.include_background_params:
+            params['background'] = theta[:, self.background_slice]
         
-        return {
-            'concentrations': concentrations,
-            'center_wavelengths': center_wavelengths,
-            'bandwidths': bandwidths
-        }
+        return params
     
     def simulate_batch(
         self,
@@ -443,6 +452,7 @@ class EnhancedSBISimulator:
         concentrations = params['concentrations']
         center_wavelengths = params['center_wavelengths']
         bandwidths = params['bandwidths']
+        background = params.get('background')
         
         batch_size = theta.shape[0]
         n_channels = self.config.n_channels
@@ -482,8 +492,13 @@ class EnhancedSBISimulator:
             background_responses = np.sum(filters * self.background_spectrum, axis=1)
             background_total = background_responses.sum()
             if background_total > 0:
+                total_background_photons = (
+                    background[batch_idx, 0]
+                    if background is not None
+                    else self.config.total_background_photons
+                )
                 background_photons = (background_responses / background_total * 
-                                    self.config.total_background_photons)
+                                    total_background_photons)
             else:
                 background_photons = np.zeros(n_channels)
             
@@ -522,6 +537,7 @@ class EnhancedSBISimulator:
         concentrations = params['concentrations']
         center_wavelengths = params['center_wavelengths']
         bandwidths = params['bandwidths']
+        background = params.get('background')
         
         batch_size = theta.shape[0]
         n_channels = self.config.n_channels
@@ -573,8 +589,13 @@ class EnhancedSBISimulator:
             background_responses = np.sum(filters * self.background_spectrum, axis=1)
             background_total = background_responses.sum()
             if background_total > 0:
+                total_background_photons = (
+                    background[batch_idx, 0]
+                    if background is not None
+                    else self.config.total_background_photons
+                )
                 background_photons = (background_responses / background_total * 
-                                    self.config.total_background_photons * bg_excitation_response)
+                                    total_background_photons * bg_excitation_response)
             else:
                 background_photons = np.zeros(n_channels)
             
@@ -697,7 +718,7 @@ class EnhancedSBISimulator:
             center_prior=center_prior,
             bandwidth_prior=bandwidth_prior,
             background_prior=background_prior,
-            include_background=True
+            include_background=self.config.include_background_params
         )
     
     def create_prior(self, prior_config: Dict = None) -> torch.distributions.Distribution:
