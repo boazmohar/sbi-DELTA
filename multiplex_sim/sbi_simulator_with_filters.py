@@ -610,7 +610,7 @@ class EnhancedSBISimulator:
             
             results.append(detected_counts)
         
-        return torch.tensor(results, dtype=torch.float32)
+        return torch.tensor(np.array(results), dtype=torch.float32)
     
     def create_dirichlet_prior(self, concentration: float = 1.0) -> Dirichlet:
         """Create Dirichlet prior for concentration ratios."""
