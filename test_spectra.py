@@ -1,8 +1,3 @@
-# File: tests/test_spectra_manager.py
-"""
-Unit tests for SpectraManager with fixed NPZ keys:
-'wavelengths_emission', 'emission', 'wavelengths_excitation', 'excitation'.
-"""
 import numpy as np
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -45,11 +40,17 @@ def test_load_and_access(tmp_path):
     ex = np.array([1.0, 0.0])
     create_npz(data / "AF488.npz", wl_em, em, wl_ex, ex)
 
-    cfg = BaseConfig(min_wavelength=0.0, max_wavelength=600.0, wavelength_step=100.0)
-    mgr = SpectraManager(cfg, data, ["AF488", "AF647"])
+    cfg = BaseConfig(
+        min_wavelength=0.0,
+        max_wavelength=600.0,
+        wavelength_step=100.0,
+        spectra_folder=data,
+        dye_names=["AF488", "AF647"]
+    )
+    mgr = SpectraManager(cfg)
     mgr.load()
 
-        # repr should list only the *loaded* dyes in emission/excitation
+    # repr should list only the *loaded* dyes in emission/excitation
     rep = repr(mgr)
     print(rep)
     assert "Emission loaded: ['AF488']" in rep
@@ -77,8 +78,14 @@ def test_load_and_access(tmp_path):
 def test_missing_file_skip(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
-    cfg = BaseConfig(min_wavelength=400.0, max_wavelength=500.0, wavelength_step=50.0)
-    mgr = SpectraManager(cfg, data, ["NONE"])
+    cfg = BaseConfig(
+        min_wavelength=400.0,
+        max_wavelength=500.0,
+        wavelength_step=50.0,
+        spectra_folder=data,
+        dye_names=["NONE"]
+    )
+    mgr = SpectraManager(cfg)
     mgr.load()
     # Empty matrices
     assert mgr.get_emission().shape == (0, len(mgr.wavelength_grid))
@@ -88,3 +95,67 @@ def test_missing_file_skip(tmp_path):
         mgr.get_emission("NONE")
     with pytest.raises(KeyError):
         mgr.get_excitation("NONE")
+
+def test_bg_dye_loading_and_access(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    # Create dye and bg npz files
+    wl = np.array([400.0, 500.0])
+    em = np.array([0.0, 2.0])
+    ex = np.array([1.0, 0.0])
+    create_npz(data / "AF488.npz", wl, em, wl, ex)
+    create_npz(data / "BG.npz", wl, em, wl, ex)
+
+    cfg = BaseConfig(
+        min_wavelength=400.0,
+        max_wavelength=500.0,
+        wavelength_step=100.0,
+        spectra_folder=data,
+        dye_names=["AF488"],
+        bg_dye="BG"
+    )
+    mgr = SpectraManager(cfg)
+    mgr.load()
+
+    # BG dye should be loaded and accessible
+    assert "BG" in mgr.emission_names
+    assert "BG" in mgr.excitation_names
+    np.testing.assert_allclose(mgr.get_bg_emission(), mgr.get_emission("BG"))
+    np.testing.assert_allclose(mgr.get_bg_excitation(), mgr.get_excitation("BG"))
+
+def test_bg_dye_missing_raises(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    cfg = BaseConfig(
+        min_wavelength=400.0,
+        max_wavelength=500.0,
+        wavelength_step=100.0,
+        spectra_folder=data,
+        dye_names=["AF488"],
+        bg_dye="BG"
+    )
+    mgr = SpectraManager(cfg)
+    mgr.load()
+    # BG dye not present in files, so KeyError on access
+    with pytest.raises(KeyError):
+        mgr.get_bg_emission()
+    with pytest.raises(KeyError):
+        mgr.get_bg_excitation()
+
+def test_no_bg_dye_specified(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    cfg = BaseConfig(
+        min_wavelength=400.0,
+        max_wavelength=500.0,
+        wavelength_step=100.0,
+        spectra_folder=data,
+        dye_names=["AF488"],
+        bg_dye=None
+    )
+    mgr = SpectraManager(cfg)
+    mgr.load()
+    with pytest.raises(ValueError):
+        mgr.get_bg_emission()
+    with pytest.raises(ValueError):
+        mgr.get_bg_excitation()

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from pathlib import Path
 import logging
 
 
@@ -82,6 +83,10 @@ class BaseConfig:
 
     random_seed: Optional[int] = None
     """Seed for the random number generator used within the simulator."""
+    
+    spectra_folder: Union[str, Path] = ""
+    dye_names: Sequence[str] = field(default_factory=list)
+    bg_dye: Optional[str] = None  # Name of background dye (autofluorescence)
 
     def __post_init__(self) -> None:
         logger.debug("Initialising BaseConfig with values: %s", self)

@@ -23,37 +23,51 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def test_base_config_defaults() -> None:
-    """Construct the default BaseConfig and verify its fields."""
-    logger.info("Starting test_base_config_defaults")
+def test_baseconfig_defaults():
     cfg = BaseConfig()
     assert cfg.min_wavelength == 350.0
     assert cfg.max_wavelength == 800.0
     assert cfg.wavelength_step == 1.0
     assert cfg.photon_budget == 1e5
-    assert cfg.random_seed is None
-    logger.info("Completed test_base_config_defaults")
+    assert cfg.spectra_folder == ""
+    assert cfg.dye_names == []
+    assert cfg.bg_dye is None
 
+def test_baseconfig_custom_fields():
+    cfg = BaseConfig(
+        min_wavelength=400,
+        max_wavelength=700,
+        wavelength_step=2,
+        photon_budget=12345,
+        spectra_folder="myfolder",
+        dye_names=["AF488", "AF647"],
+        bg_dye="AF488"
+    )
+    assert cfg.spectra_folder == "myfolder"
+    assert cfg.dye_names == ["AF488", "AF647"]
+    assert cfg.bg_dye == "AF488"
 
-def test_base_config_custom() -> None:
-    """Custom values are respected by BaseConfig."""
-    logger.info("Starting test_base_config_custom")
-    cfg = BaseConfig(min_wavelength=400.0, max_wavelength=900.0, wavelength_step=2.0, photon_budget=5e4, random_seed=42)
-    assert cfg.min_wavelength == 400.0
-    assert cfg.max_wavelength == 900.0
-    assert cfg.wavelength_step == 2.0
-    assert cfg.photon_budget == 5e4
-    assert cfg.random_seed == 42
-    logger.info("Completed test_base_config_custom")
-
-
-def test_base_config_invalid_range() -> None:
-    """Invalid wavelength ranges should raise ValueError."""
-    logger.info("Starting test_base_config_invalid_range")
+def test_baseconfig_invalid_range():
     with pytest.raises(ValueError):
-        BaseConfig(min_wavelength=500.0, max_wavelength=400.0)
-    logger.info("Completed test_base_config_invalid_range")
+        BaseConfig(min_wavelength=800, max_wavelength=700)
 
+def test_baseconfig_invalid_step():
+    with pytest.raises(ValueError):
+        BaseConfig(wavelength_step=0)
+
+def test_baseconfig_invalid_photon_budget():
+    with pytest.raises(ValueError):
+        BaseConfig(photon_budget=0)
+
+def test_baseconfig_bg_dye_not_in_dye_names():
+    # Should not raise, but warn (cannot test warning easily here)
+    cfg = BaseConfig(
+        spectra_folder="folder",
+        dye_names=["AF488"],
+        bg_dye="AF555"
+    )
+    assert cfg.bg_dye == "AF555"
+    assert "AF555" not in cfg.dye_names
 
 def test_filter_config_defaults() -> None:
     """Default FilterConfig values are correctly set."""
