@@ -59,3 +59,21 @@ def test_prior_manager_requires_bg_dye():
     prior_config = PriorConfig(dirichlet_concentration=2.0, include_background_ratio=True, background_ratio_bounds=(0.1, 0.9))
     with pytest.raises(ValueError, match="must set bg_dye"):
         PriorManager(prior_config, base_config)
+
+def test_dirichlet_prior_from_joint_prior():
+  
+    # No background
+    base_config = BaseConfig(dye_names=["A", "B", "C"], bg_dye=None)
+    prior_config = PriorConfig(dirichlet_concentration=2.0, include_background_ratio=False)
+    pm = PriorManager(prior_config, base_config)
+    prior = pm.get_joint_prior()
+    # Should be a custom Distribution (not MultipleIndependent)
+    assert hasattr(prior, "sample") and hasattr(prior, "log_prob")
+    samples = prior.sample((100,))
+    assert samples.shape == (100, 3)
+    # Should sum to 1 (Dirichlet property)
+    assert torch.allclose(samples.sum(dim=1), torch.ones(100), atol=1e-5)
+    # log_prob should be finite
+    logp = prior.log_prob(samples)
+    assert logp.shape == (100,)
+    assert torch.isfinite(logp).all()

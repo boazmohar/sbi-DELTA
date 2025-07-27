@@ -1,3 +1,4 @@
+from sbi.utils import MultipleIndependent
 import torch
 from torch.distributions import Dirichlet, Uniform, Distribution
 from typing import Optional
@@ -6,6 +7,7 @@ import matplotlib.pyplot as plt
 
 
 class PriorManager:
+
     """
     Manages creation of priors for SBI-DELTA using PriorConfig and BaseConfig.
     """
@@ -78,8 +80,17 @@ class PriorManager:
                     return lp_c + lp_b
             return JointPrior()
         else:
-            return concentration_prior
-        
+            # Use a custom wrapper class for Dirichlet, matching the JointPrior interface
+            concentration_prior = self.get_concentration_prior()
+            class DirichletPrior(Distribution):
+                arg_constraints = {}
+               
+                def sample(self, sample_shape=torch.Size()):
+                    return concentration_prior.sample(sample_shape)
+                def log_prob(self, theta):
+                    return concentration_prior.log_prob(theta)
+            return DirichletPrior()
+    
     def visualize_joint_prior(self, n_samples=1000, ax=None):
         """
         Visualize samples from the joint prior as histograms for each parameter.
