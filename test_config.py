@@ -109,26 +109,49 @@ def test_filter_config_custom_values() -> None:
     logger.info("Completed test_filter_config_custom_values")
 
 
-def test_excitation_config_manual() -> None:
-    """Manual excitation wavelengths are accepted when enabled."""
-    logger.info("Starting test_excitation_config_manual")
-    ex = ExcitationConfig(use_manual_wavelengths=True, manual_wavelengths=[405.0, 488.0])
-    assert ex.use_manual_wavelengths is True
-    assert ex.manual_wavelengths == [405.0, 488.0]
-    logger.info("Completed test_excitation_config_manual")
+def test_excitation_config_manual_valid():
+    cfg = ExcitationConfig(
+        excitation_mode="manual",
+        manual_wavelengths=[400.0, 500.0, 600.0]
+    )
+    assert cfg.excitation_mode == "manual"
+    assert cfg.manual_wavelengths == [400.0, 500.0, 600.0]
+    assert cfg.search_range is None
 
-
-def test_excitation_config_missing_manual() -> None:
-    """Missing manual wavelengths should raise ValueError when enabled."""
-    logger.info("Starting test_excitation_config_missing_manual")
+def test_excitation_config_manual_missing_wavelengths():
     with pytest.raises(ValueError):
-        ExcitationConfig(use_manual_wavelengths=True)
-    logger.info("Completed test_excitation_config_missing_manual")
+        ExcitationConfig(
+            excitation_mode="manual",
+            manual_wavelengths=None
+        )
 
-
-def test_excitation_config_invalid_search_range() -> None:
-    """Invalid search ranges should raise ValueError."""
-    logger.info("Starting test_excitation_config_invalid_search_range")
+def test_excitation_config_manual_negative_wavelength():
     with pytest.raises(ValueError):
-        ExcitationConfig(search_range=(600.0, 500.0))
-    logger.info("Completed test_excitation_config_invalid_search_range")
+        ExcitationConfig(
+            excitation_mode="manual",
+            manual_wavelengths=[400.0, -500.0]
+        )
+
+def test_excitation_config_manual_ignored_warning(caplog):
+    cfg = ExcitationConfig(
+        excitation_mode="peak",
+        manual_wavelengths=[400.0, 500.0]
+    )
+    assert cfg.excitation_mode == "peak"
+    assert cfg.manual_wavelengths == [400.0, 500.0]
+    # Should log a warning about ignoring manual_wavelengths
+    assert any("manual_wavelengths provided but excitation_mode is not 'manual'" in r.message for r in caplog.records)
+
+def test_excitation_config_search_range_valid():
+    cfg = ExcitationConfig(
+        excitation_mode="peak",
+        search_range=(400.0, 700.0)
+    )
+    assert cfg.search_range == (400.0, 700.0)
+
+def test_excitation_config_search_range_invalid():
+    with pytest.raises(ValueError):
+        ExcitationConfig(
+            excitation_mode="peak",
+            search_range=(700.0, 400.0)
+        )

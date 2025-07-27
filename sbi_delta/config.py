@@ -147,23 +147,21 @@ class ExcitationConfig:
         wavelengths may be sampled when not using manual wavelengths.  If
         provided, ``min`` must be strictly less than ``max``.
     """
-
-    include_crosstalk: bool = True
-    use_manual_wavelengths: bool = False
+    excitation_mode: str = "manual"  # "manual", "peak", or "min_crosstalk"
     manual_wavelengths: Optional[Sequence[float]] = None
     search_range: Optional[Tuple[float, float]] = None
 
     def __post_init__(self) -> None:
         logger.debug("Initialising ExcitationConfig with values: %s", self)
-        if self.use_manual_wavelengths:
+        if self.excitation_mode == "manual":
             if self.manual_wavelengths is None:
                 raise ValueError(
-                    "manual_wavelengths must be provided when use_manual_wavelengths is True"
+                    "manual_wavelengths must be provided when excitation_mode is 'manual'"
                 )
         if self.manual_wavelengths is not None:
-            if not self.use_manual_wavelengths:
+            if self.excitation_mode != "manual":
                 logger.warning(
-                    "manual_wavelengths provided but use_manual_wavelengths is False; values will be ignored"
+                    "manual_wavelengths provided but excitation_mode is not 'manual'; values will be ignored"
                 )
             # ensure all wavelengths are positive
             for wl in self.manual_wavelengths:
