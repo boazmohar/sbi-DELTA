@@ -97,6 +97,21 @@ class BaseConfig:
             raise ValueError(f"photon_budget must be positive (got {self.photon_budget})")
 
 
+
+# --- PriorConfig for prior-related options ---
+@dataclass
+class PriorConfig:
+    """Configuration for priors used in SBI-DELTA."""
+    dirichlet_concentration: float = 1.0
+    """Concentration parameter for the Dirichlet prior over fluorophore concentrations (can be <1 or >1)."""
+
+    include_background_ratio: bool = False
+    """If True, include a background parameter as a ratio (fraction of total photons, 0-1)."""
+
+    background_ratio_bounds: Tuple[float, float] = (0.0, 1.0)
+    """Bounds for the background ratio parameter (fraction of total photons allocated to background, must be in [0, 1])."""
+
+   
 @dataclass
 class FilterConfig:
     """Configuration for detection filters using start, stop, and sharpness.

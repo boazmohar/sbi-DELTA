@@ -97,7 +97,7 @@ class ExcitationManager:
                 cost = self._excitation_cost(
                     np.array(candidate_wavelengths),
                     {k: spectra_dict[k] for k in cost_names},
-                    shared_wl, verbose=True
+                    shared_wl, verbose=False
                 )
                 if best_cost is None or cost < best_cost:
                     best_cost = cost
@@ -188,19 +188,26 @@ class ExcitationManager:
 
     def plot_on_spectra(self, spectra_manager, ax=None) -> "plt.Axes":
         """
-        Overlay excitation wavelengths on top of all excitation spectra.
+        Overlay excitation wavelengths on top of all excitation spectra,
+        including a vertical line for the background dye's excitation peak (laser line).
         """
         if ax is None:
             fig, ax = plt.subplots()
         spectra_manager.plot_all_excitations(ax=ax)
+        # Plot vertical lines for each dye's excitation wavelength
         for dye, wl in zip(self.config.dye_names, self.get_wavelengths()):
             ax.axvline(wl, linestyle=':', color='black', alpha=0.7, label=f"{dye} λ={wl:.1f} nm")
-                # Plot the excitation spectrum for the background dye
+        # Plot the excitation peak (laser line) for the background dye, if present
         bg_dye = self.config.bg_dye
         if bg_dye is not None and bg_dye in spectra_manager.excitation_names:
-            ax = spectra_manager.plot_excitation(bg_dye)
-            ax.set_title(f"Excitation Spectrum: {bg_dye} (Background)")
-            plt.show()
+            ex = spectra_manager.get_excitation(bg_dye)
+            wl_grid = spectra_manager.wavelength_grid
+            idx = np.argmax(ex)
+            bg_peak = wl_grid[idx]
+            # Plot the background dye excitation spectrum
+            ax.plot(wl_grid, ex, label=f"{bg_dye} excitation", color="gray", alpha=0.7)
+            # Plot the laser line for the background dye
+            ax.axvline(bg_peak, linestyle='--', color='gray', alpha=0.8, label=f"{bg_dye} laser @ {bg_peak:.1f} nm")
         else:
             print("Background dye excitation not found or not loaded.")
         ax.legend()
