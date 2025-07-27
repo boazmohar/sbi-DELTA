@@ -4,6 +4,9 @@ import abc
 from sbi_delta.spectra_manager import SpectraManager
 from sbi_delta.filter_bank import FilterBank
 from sbi_delta.config import BaseConfig
+from sbi_delta.excitation_manager import ExcitationManager
+from sbi_delta.prior_manager import PriorManager
+
 
 class BaseSimulator(abc.ABC):
     """
@@ -17,15 +20,23 @@ class BaseSimulator(abc.ABC):
         Must have been initialized with the same BaseConfig.
     config : BaseConfig
         Simulation‐wide config (photon_budget, grid, etc).
+    excitation_manager : ExcitationManager, optional
+        Handles excitation spectra and logic.
+    prior_manager : PriorManager, optional
+        Handles prior distributions for simulation.
     """
 
     def __init__(self,
                  spectra_manager: SpectraManager,
                  filter_bank: FilterBank,
-                 config: BaseConfig):
+                 config: BaseConfig,
+                 excitation_manager: ExcitationManager = None,
+                 prior_manager: PriorManager = None):
         self.spectra_manager = spectra_manager
         self.filter_bank = filter_bank
         self.config = config
+        self.excitation_manager = excitation_manager
+        self.prior_manager = prior_manager
 
         # Ensure both pieces share the same grid
         assert hasattr(self.spectra_manager, "wavelength_grid"), "SpectraManager missing grid"

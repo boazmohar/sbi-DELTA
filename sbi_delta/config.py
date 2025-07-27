@@ -78,7 +78,7 @@ class BaseConfig:
     wavelength_step: float = 1.0
     """Step size of the wavelength sampling grid in nanometres."""
 
-    photon_budget: float = 1e5
+    photon_budget: float = 1e2
     """Total number of photons allocated across all fluorophores and channels."""
 
     random_seed: Optional[int] = None
