@@ -206,7 +206,9 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 data/.DS_Store
-notebooks/sbi-logs*
+notebooks/sbi-logs/*
 notebooks/checkpoints/*
 Thumbs.db
 .DS_Store
+
+sbi_delta/notebooks/sbi_training_demo_results/*.pt
