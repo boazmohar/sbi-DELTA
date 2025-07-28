@@ -14,6 +14,7 @@ from typing import Sequence, Optional
 from sbi_delta.config import BaseConfig, FilterConfig
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 class FilterBank:
     """
