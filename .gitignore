@@ -212,3 +212,4 @@ Thumbs.db
 .DS_Store
 
 sbi_delta/notebooks/sbi_training_demo_results/*.pt
+sbi_delta/notebooks/sbi-logs/*

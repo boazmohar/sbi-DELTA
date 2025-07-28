@@ -1,0 +1,9 @@
+{
+  "training_batch_size": 256.0,
+  "learning_rate": 0.0005,
+  "validation_fraction": 0.1,
+  "stop_after_epochs": 10.0,
+  "mean_r2": 0.91511075258255,
+  "mean_rmse": 0.016552643850445747,
+  "mean_width": 0.11981406807899475
+}

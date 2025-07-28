@@ -56,10 +56,10 @@ class Trainer:
         inference = SNPE(prior=self.prior)
         inference.append_simulations(train_theta, train_x)
         density_estimator = inference.train(
-            training_batch_size=128,
-            learning_rate=5e-4,
+            training_batch_size=256,
+            learning_rate=0.0005,
             validation_fraction=0.1,
-            stop_after_epochs=10,
+            stop_after_epochs=20,
             show_train_summary=True
         )
         self.posterior = inference.build_posterior(density_estimator)
@@ -76,8 +76,11 @@ class Trainer:
         posterior_width = []
         for i in tqdm(range(self.n_val), desc='Validating', leave=True):
             samples = self.posterior.sample((1000,), x=val_x[i], show_progress_bars=False)
-            pred_theta.append(samples.mean(dim=0).numpy())
-            posterior_width.append(samples.std(dim=0).numpy())
+            mean = samples.mean(dim=0).numpy()
+            std = samples.std(dim=0).numpy()
+            cv = np.divide(std, mean, out=np.zeros_like(std), where=mean!=0)
+            pred_theta.append(mean)
+            posterior_width.append(cv)
         pred_theta = np.stack(pred_theta)
         posterior_width = np.stack(posterior_width)
         # Per-example R^2 and RMSE
