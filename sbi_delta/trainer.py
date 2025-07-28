@@ -65,7 +65,7 @@ class Trainer:
         self.posterior = inference.build_posterior(density_estimator)
         return self.posterior
 
-    def validate(self):
+    def validate(self, n_samples=1000):
         val_theta = self.prior.sample((self.n_val,))
         val_x = []
         for theta in val_theta:
@@ -75,7 +75,7 @@ class Trainer:
         pred_theta = []
         posterior_width = []
         for i in tqdm(range(self.n_val), desc='Validating', leave=True):
-            samples = self.posterior.sample((1000,), x=val_x[i], show_progress_bars=False)
+            samples = self.posterior.sample((n_samples,), x=val_x[i], show_progress_bars=False)
             mean = samples.mean(dim=0).numpy()
             std = samples.std(dim=0).numpy()
             cv = np.divide(std, mean, out=np.zeros_like(std), where=mean!=0)
