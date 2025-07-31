@@ -332,7 +332,8 @@ class VariableEmissionSimulator(BaseSimulator):
                 det_counts = np.array(det_counts)[sorted_indices]
                 
                 # Interpolate with extrapolation to 0 outside measurement range
-                interp_func = interp1d(det_wavelengths, det_counts, kind='linear', 
+                # Use configurable interpolation method from config
+                interp_func = interp1d(det_wavelengths, det_counts, kind=self.config.interpolation_kind, 
                                      bounds_error=False, fill_value=0.0)
                 interpolated_spectra[i_exc, :] = interp_func(interp_wavelengths)
             elif len(det_wavelengths) == 1:

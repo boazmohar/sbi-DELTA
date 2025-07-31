@@ -213,3 +213,4 @@ Thumbs.db
 
 sbi_delta/notebooks/sbi_training_demo_results/*.pt
 sbi_delta/notebooks/sbi-logs/*
+sbi-logs/*

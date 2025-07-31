@@ -18,13 +18,14 @@ from tqdm import tqdm
 
 # Trainer class for SBI workflow
 class Trainer:
-    def __init__(self, simulator, n_train=2000, n_val=500, save_dir="sbi_training_demo_results"):
+    def __init__(self, simulator, n_train=2000, n_val=500, save_dir="sbi_training_demo_results", network_architecture=None):
         """
         Args:
             simulator: An instance of EmissionSimulator (or compatible simulator)
             n_train: Number of training samples
             n_val: Number of validation samples
             save_dir: Directory to save results
+            network_architecture: dict with network architecture parameters (optional)
         """
         self.simulator = simulator
         # Get n_dyes from simulator config
@@ -39,6 +40,7 @@ class Trainer:
             self.prior = BoxUniform(low=torch.zeros(self.n_dyes), high=torch.ones(self.n_dyes))
         self.posterior = None
         self.results = {}
+        self.network_architecture = network_architecture or {}
 
     def generate_training_data(self):
         train_theta = self.prior.sample((self.n_train,))
@@ -51,18 +53,42 @@ class Trainer:
         self.results['train_x'] = train_x
         return train_theta, train_x
 
-    def train(self):
+    def train(self, network_architecture=None, **kwargs):
+        """
+        Train the SBI posterior. Optionally override network architecture.
+        Args:
+            network_architecture: dict, optional, overrides default or __init__-provided architecture
+            kwargs: passed to SNPE.train()
+        """
         train_theta, train_x = self.generate_training_data()
-        inference = SNPE(prior=self.prior)
+        # Merge architectures: method arg > instance arg > default
+        net_arch = self.network_architecture.copy()
+        if network_architecture:
+            net_arch.update(network_architecture)
+        # Prepare density estimator config
+        density_estimator = net_arch.pop('density_estimator', 'maf')  # default to 'maf' (as in sbi)
+        # Pass network args if any
+        snpe_args = {}
+        if net_arch:
+            snpe_args['density_estimator'] = density_estimator
+            snpe_args['embedding_net'] = net_arch.get('embedding_net', None)
+            # Remove None values and embedding_net if not set
+            snpe_args = {k: v for k, v in snpe_args.items() if v is not None}
+        else:
+            snpe_args['density_estimator'] = density_estimator
+        inference = SNPE(prior=self.prior, **snpe_args)
         inference.append_simulations(train_theta, train_x)
-        density_estimator = inference.train(
+        # Default training args
+        train_args = dict(
             training_batch_size=256,
             learning_rate=0.0005,
             validation_fraction=0.1,
             stop_after_epochs=20,
             show_train_summary=True
         )
-        self.posterior = inference.build_posterior(density_estimator)
+        train_args.update(kwargs)
+        density_est = inference.train(**train_args)
+        self.posterior = inference.build_posterior(density_est)
         return self.posterior
 
     def validate(self, n_samples=1000):

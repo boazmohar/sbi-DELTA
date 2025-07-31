@@ -9,7 +9,7 @@ from typing import Sequence, Union, List, Optional
 import matplotlib.pyplot as plt
 
 # Configure basic logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 class SpectraManager:

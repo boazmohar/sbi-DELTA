@@ -87,6 +87,11 @@ class BaseConfig:
     spectra_folder: Union[str, Path] = ""
     dye_names: Sequence[str] = field(default_factory=list)
     bg_dye: Optional[str] = None  # Name of background dye (autofluorescence)
+    
+    interpolation_kind: Union[str, int] = 'linear'
+    """Interpolation method for variable emission simulator. 
+    Can be 'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic', 
+    or an integer specifying the order of the spline interpolator to use."""
 
     def __post_init__(self) -> None:
         logger.debug("Initialising BaseConfig with values: %s", self)
