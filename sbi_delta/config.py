@@ -115,6 +115,18 @@ class PriorConfig:
 
     background_ratio_bounds: Tuple[float, float] = (0.0, 1.0)
     """Bounds for the background ratio parameter (fraction of total photons allocated to background, must be in [0, 1])."""
+    
+    include_filter_params: bool = False
+    """If True, include filter parameters (start wavelength and width) in the prior."""
+    
+    n_filters: int = 5
+    """Number of filters when using filter parameters in prior."""
+    
+    max_filter_width: float = 50.0
+    """Maximum allowed filter width in nm."""
+    
+    min_filter_width: float = 10.0
+    """Minimum allowed filter width in nm."""
 
    
 @dataclass

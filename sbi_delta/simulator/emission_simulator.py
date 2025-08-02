@@ -90,9 +90,9 @@ class EmissionSimulator(BaseSimulator):
                     bg_matrix[i_exc, i_ch] = detected
 
         # --- Normalization ---
-        # Only normalize the signal (not background)
-        total_signal = np.sum(signal_matrix)
+        # Normalize signal by total area under curve
         signal_matrix_pre_norm = signal_matrix.copy()
+        total_signal = np.sum(signal_matrix)
         if total_signal > 0:
             signal_matrix_norm = signal_matrix / total_signal * float(photon_budget)
         else:

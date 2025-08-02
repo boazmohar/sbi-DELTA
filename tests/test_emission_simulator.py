@@ -51,15 +51,23 @@ def make_simulator(bg_dye='AF_v1', photon_budget=100):
 
 def test_simulate_no_bg_no_noise():
     sim, prior_mgr = make_simulator(bg_dye=None)
-    concentrations = np.ones(5)
+    concentrations = np.ones(5) / 5  # Normalize to sum to 1
     counts = sim.simulate(concentrations=concentrations, add_noise=False, debug=False)
     assert counts.shape == (5, 5)
     assert np.all(counts >= 0)
     assert np.isclose(np.sum(counts), sim.config.photon_budget, atol=1e-2)
+    
+    # Test that scaling is proportional when one dye is doubled
+    concentrations_doubled = np.ones(5).copy()
+    concentrations_doubled[0] = 2.0
+    concentrations_doubled = concentrations_doubled / np.sum(concentrations_doubled)  # Normalize to sum to 1
+    counts_doubled = sim.simulate(concentrations=concentrations_doubled, add_noise=False, debug=False)
+    assert np.all(counts_doubled[0] > counts[0])  # First dye should have higher counts
+    assert np.isclose(np.sum(counts_doubled), sim.config.photon_budget, atol=1e-2)  # Total should still match budget
 
 def test_simulate_with_bg_no_noise():
     sim, prior_mgr = make_simulator(bg_dye="AF_v1")
-    concentrations = np.ones(6)  # 5 dyes + 1 bg
+    concentrations = np.ones(6) / 5  # 5 dyes share equal proportions (sum to 1), last value is bg
     counts = sim.simulate(concentrations=concentrations, add_noise=False, debug=False)
     assert counts.shape == (5, 5)
     assert np.all(counts >= 0)
@@ -79,7 +87,7 @@ def test_simulate_no_bg_with_noise():
 
 def test_simulate_with_bg_with_noise():
     sim, prior_mgr = make_simulator(bg_dye="AF_v1")
-    concentrations = np.ones(6)  # 5 dyes + 1 bg
+    concentrations = np.ones(6) / 5  # 5 dyes share equal proportions (sum to 1), last value is bg
     counts = sim.simulate(concentrations=concentrations, add_noise=True, debug=False)
     assert counts.shape == (5, 5)
     assert np.all(counts >= 0)

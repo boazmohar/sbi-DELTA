@@ -3,21 +3,27 @@ import torch
 from torch.distributions import Dirichlet, Uniform, Distribution
 from typing import Optional
 from .config import PriorConfig, BaseConfig
+from .stick_breaking_prior import StickBreakingPrior
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 class PriorManager:
 
     """
     Manages creation of priors for SBI-DELTA using PriorConfig and BaseConfig.
     """
-    def __init__(self, prior_config: PriorConfig, base_config: BaseConfig):
+    def __init__(self, prior_config: PriorConfig, base_config: BaseConfig, excitation_manager=None):
         self.config = prior_config
         self.base_config = base_config
+        self.excitation_manager = excitation_manager
         self.n_fluorophores = len(base_config.dye_names)
-        # Validation: if background ratio is requested, bg_dye must be set
+        
+        # Validation
         if self.config.include_background_ratio and not getattr(self.base_config, 'bg_dye', None):
             raise ValueError("If include_background_ratio is True, you must set bg_dye in BaseConfig.")
+            
+        if self.config.include_filter_params and excitation_manager is None:
+            raise ValueError("If include_filter_params is True, you must provide an excitation_manager.")
 
     def get_concentration_prior(self) -> Distribution:
         # Dirichlet prior over fluorophore concentrations, using config value
@@ -53,43 +59,73 @@ class PriorManager:
             return Uniform(low, high)
         return None
 
+    def get_filter_prior(self) -> Optional[Distribution]:
+        """Returns prior distribution for filter parameters using stick breaking process."""
+        if not self.config.include_filter_params:
+            return None
+            
+        # Calculate total available wavelength range
+        total_width = self.base_config.max_wavelength - self.base_config.min_wavelength
+        
+        # Create stick breaking prior for filter and gap widths
+        return StickBreakingPrior(
+            n_filters=self.config.n_filters,
+            total_width=total_width,
+            min_filter_width=self.config.min_filter_width,
+            max_filter_width=self.config.max_filter_width,
+            concentration=1.0  # Can be made configurable if needed
+        )
+        
+        return MultipleIndependent(filter_priors)
+
     def get_joint_prior(self) -> Distribution:
         """
-        Returns a joint prior over concentrations and (optionally) background ratio.
-        The background ratio is a value in [0,1] representing the fraction of total photons
-        allocated to background.
+        Returns a joint prior over concentrations, background ratio (optional),
+        and filter parameters (optional).
         """
         concentration_prior = self.get_concentration_prior()
         background_prior = self.get_background_ratio_prior()
-        if background_prior is not None:
-            # Compose arg_constraints from the underlying priors
-            class JointPrior(Distribution):
-                arg_constraints = { }
-                def sample(self, sample_shape=torch.Size()):
-                    c = concentration_prior.sample(sample_shape)
+        filter_prior = self.get_filter_prior()
+        
+        # Combine all enabled priors
+        class JointPrior(Distribution):
+            arg_constraints = {}
+            
+            def sample(self, sample_shape=torch.Size()):
+                samples = [concentration_prior.sample(sample_shape)]
+                
+                if background_prior is not None:
                     b = background_prior.sample(sample_shape)
                     if len(b.shape) == len(sample_shape):
                         b = b.unsqueeze(-1)
-                    return torch.cat([c, b], dim=-1)
-                def log_prob(self, theta):
-                    # theta shape: (..., n_fluorophores + 1)
-                    c = theta[..., :concentration_prior.event_shape[0]]
-                    b = theta[..., -1]
-                    lp_c = concentration_prior.log_prob(c)
-                    lp_b = background_prior.log_prob(b)
-                    return lp_c + lp_b
-            return JointPrior()
-        else:
-            # Use a custom wrapper class for Dirichlet, matching the JointPrior interface
-            concentration_prior = self.get_concentration_prior()
-            class DirichletPrior(Distribution):
-                arg_constraints = {}
-               
-                def sample(self, sample_shape=torch.Size()):
-                    return concentration_prior.sample(sample_shape)
-                def log_prob(self, theta):
-                    return concentration_prior.log_prob(theta)
-            return DirichletPrior()
+                    samples.append(b)
+                    
+                if filter_prior is not None:
+                    f = filter_prior.sample(sample_shape)
+                    samples.append(f)
+                    
+                return torch.cat(samples, dim=-1)
+                
+            def log_prob(self, theta):
+                # Split parameters
+                n_conc = concentration_prior.event_shape[0]
+                c = theta[..., :n_conc]
+                cur_idx = n_conc
+                
+                log_probs = [concentration_prior.log_prob(c)]
+                
+                if background_prior is not None:
+                    b = theta[..., cur_idx]
+                    log_probs.append(background_prior.log_prob(b))
+                    cur_idx += 1
+                    
+                if filter_prior is not None:
+                    f = theta[..., cur_idx:]
+                    log_probs.append(filter_prior.log_prob(f))
+                    
+                return sum(log_probs)
+                
+        return JointPrior()
     
     def visualize_joint_prior(self, n_samples=1000, ax=None):
         """
